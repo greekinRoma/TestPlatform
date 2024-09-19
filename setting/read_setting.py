@@ -16,7 +16,7 @@ def begin_excel(loc,sheet_name):
     dir_name=os.path.dirname(loc)
     writer=pd.ExcelWriter(os.path.join(dir_name,'save.xlsx'))
     excel.to_excel(writer,'save',index=False)
-    writer.save()
+    writer._save()
     writer.close()
 def finish_excel(loc,sheet_name):
     #获得路
@@ -28,13 +28,13 @@ def finish_excel(loc,sheet_name):
     finishes_excel=finishes_excel.append(content)
     writer=pd.ExcelWriter(os.path.join(dir_name,'finish.xlsx'))
     finishes_excel.to_excel(writer, 'finish', index=False)
-    writer.save()
+    writer._save()
     writer.close()
     #
     excel = excel.drop(0)
     writer = pd.ExcelWriter(os.path.join(loc))
     excel.to_excel(writer, sheet_name=sheet_name, index=False)
-    writer.save()
+    writer._save()
     writer.close()
 def transform_type(datas):
     for key in datas.keys():

@@ -1,0 +1,36 @@
+net_name:yolox_s
+name:0
+mode:ssd
+assign_mode:simota
+coco_data_dir:./datasets/SII
+target_dir:./datasets
+use_shuffle:True
+cache_type:ram
+cache:True
+batch_size:16
+maxtarget:3
+aug_prob:1.0
+mixup_mosaic_prob:0.5
+mixup_prob:1
+mosaic_prob:1
+flip_prob:0.5
+gen_prob:0.5
+img_size:(640, 640)
+enable_mosaic:1
+degrees:10
+translate:0.1
+mosaic_scale:(0.5, 1.5)
+mixup_scale:(0.5, 1.5)
+shear:2
+enable_mixup:True
+beta:0.4
+use_valid:1
+root_dir:/home/greek/files/test/Test_platfrom
+image_ext:.png
+use_cuda:True
+max_epoch:150
+input_size:640
+strides:[8]
+in_channels:[256]
+fp16:False
+data_type:torch.float32

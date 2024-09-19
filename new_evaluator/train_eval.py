@@ -15,24 +15,16 @@ class Evaluator():
         self.coco = coco(save_dir='./', image_set='test', year='2007')
         self.save_file='./content.json'
         self.stats=None
+        self.postprocess = None
+        self.model = None
     def model_predict(self,image):
-        with torch.no_grad():
-            outputs = self.model(image,False)
-            outputs[...,4]=outputs[...,4].sigmoid()
-            outputs[...,5]=outputs[...,5].sigmoid()
-            outputs[...,6]=outputs[...,6].sigmoid()
-            outputs = postprocess(
-                outputs,
-                self.num_classes,
-                self.test_conf,
-                self.nmsthre,
-                class_agnostic=True)
-        output=outputs[0]
-        if output is None:
-            return np.array([]),np.array([])
-        return output[..., 0:4].cpu().numpy()*500/640,(output[..., 4]*output[..., 5]*output[...,6]).cpu().numpy()
+        outputs = self.model(image)
+        outputs = self.postprocess(outputs)
+        return outputs[..., 0:4].cpu().numpy(),(outputs[..., 4]*outputs[..., 5]).cpu().numpy()
     def push_model(self,model):
         self.model=model
+    def push_postprocess(self,postprocess):
+        self.postprocess = postprocess
     def eval(self):
         assert self.model is not None,'you should push a model,and the model is None!'
         all_boxes = [[]]
