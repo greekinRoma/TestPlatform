@@ -73,26 +73,6 @@ class TestExp():
         torch.save(model,os.path.join(self.save_dir,'save_weight.pth'))
         self.model.eval()
         self.model.load_state_dict(model['model'], strict=False)
-    def model_predict(self, image):
-        with torch.no_grad():
-            outputs = self.model(image, False)
-            outputs[..., 4] = outputs[..., 4].sigmoid()
-            outputs[..., 5] = outputs[..., 5].sigmoid()
-            outputs[..., 6] = outputs[..., 6].sigmoid()
-            outputs = postprocess(
-                outputs,
-                self.num_classes,
-                self.test_conf,
-                self.nmsthre,
-                class_agnostic=True)
-            bboxes = []
-            scores = []
-            for output in outputs:
-                if output is None:
-                    return np.array([]), np.array([])
-                bboxes.append(output[..., 0:4]*500/640)
-                scores.append(output[..., 4] * output[..., 5] * output[..., 6])
-        return bboxes, scores
     def show_prediction(self,imgs,outcomes,targets,scores):
         for img_g,outcome,target,score in zip(imgs,outcomes,targets,scores):
             img_g=img_g.permute(1,2,0).cpu().numpy().astype(np.uint8)
@@ -131,31 +111,6 @@ class TestExp():
         for box in boxes:
             box_list.append([int(box[0]), int(box[1]), int(box[2]), int(box[3])])
         return box_list
-    def draw_box(self,image,boxes_g,color=(0,255,0),class_name=None,scores=None):
-        boxes = self.tranform_int(boxes_g).copy()
-        for i,box in enumerate(boxes):
-            cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), color)
-            if scores is None:
-                continue
-            score=scores[i]
-            text = '{}:{:.1f}%'.format(class_name, score * 100)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            txt_size = cv2.getTextSize(text, font, 0.4, 1)[0]
-            cv2.rectangle(
-                image,
-                (box[0], box[1] + 31),
-                (box[0] + txt_size[0] + 1, box[1] + int(1.5 * txt_size[1])+30),
-                (255,0,0),
-                -1)
-            cv2.putText(image, text, (box[0], box[1] + txt_size[1]+30), font, 0.4, (255,255,255))
-        return image
-    def get_p_r(self,precision):
-        plt.plot(np.arange(0., 1.01, 0.01), precision)
-        plt.xlim(0, 1.)
-        plt.ylim(0., 1.01)
-        plt.xlabel('Recall')
-        plt.ylabel('Precision')
-        plt.savefig(os.path.join(self.save_dir, 'p-r.png'))
     def read_coco_outcome(self):
         stats, precision = self.coco._do_detection_eval(res_file=self.save_file, output_dir=self.save_dir)
         names=[]
