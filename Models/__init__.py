@@ -1,6 +1,6 @@
 import torch
 from .DETR import DETR
-def Get_Network(model_name:str):
+def Get_Network(model_name:str,args):
     if model_name == 'detr':
-        detr = DETR()
+        detr = DETR(args)
     return detr
