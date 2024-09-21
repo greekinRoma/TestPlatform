@@ -49,6 +49,7 @@ def generate_args(main_dir:str,set_dict:dict,is_read_excel:bool):
         assert len(set_dict)>0,'names and setting is empty!!!!please check the path of loc!!!'
     args=EasyDict()
     #----------------------------NetWork----------------------------#
+    args['model'] = 'YOLOF'
     args['net_name'] = 'yolox_s'
     args['name']=0
     args["mode"]='ssd'

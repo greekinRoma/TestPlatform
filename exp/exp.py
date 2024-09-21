@@ -11,9 +11,11 @@ from DataLoader.dataset.valtransform import ValTransform
 from DataLoader.dataset.dataaugment import AugmentController
 from DataLoader.dataset.data_cache import DataCache
 from Models import Get_Network
+from DataLoader.encoder import get_encoder
 class MyExp(nn.Module):
     def __init__(self,data_cache:DataCache,args,save_path):
         super(MyExp,self).__init__()
+        self.args = args
         self.data_dir =args['coco_data_dir']
         self.target_dir=args['target_dir']
         self.use_cuda=args['use_cuda']
@@ -62,6 +64,8 @@ class MyExp(nn.Module):
                                       batch_size=1,
                                       use_shuffle=False,
                                       use_cuda=self.use_cuda)
+        self.model = args['model']
+        self.encoder = get_encoder(self.model)
         #---------------------------path----------------------------#
         self.save_path = save_path
         self.file_name = os.path.join('training_save', args['net_name'] + '_' + "OTA")
@@ -70,12 +74,11 @@ class MyExp(nn.Module):
         # ----------------------------------------------------------#
         self.num_batch=len(self.train_loader)
         self.max_epoch=args['max_epoch']
-        self.input_size=640
-        self.train_network = Get_Network('detr')
+        self.input_size=args['input_size']
+        self.train_network = Get_Network(self.model,args=args)
         self.model = self.train_network.model
-        self.process = self.train_network.postprocessors
-        if self.use_cuda:
-            self.model=self.model.cuda()
+        # if self.use_cuda:
+        #     self.model=self.model.cuda()
         # --------------  evaluation --------------------- #
         self.test_evaluator = Evaluator(self.test_loader,need_change=False)
         # --------------  training config --------------------- #

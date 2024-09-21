@@ -20,6 +20,7 @@ class Trainer:
         self.save_history_ckpt = exp.save_history_ckpt
         self.meter = MeterBuffer(window_size=exp.print_interval)
         self.use_cuda=self.exp.use_cuda
+        self.args = self.exp.args
         # data/dataloader related attr
         self.data_type = torch.float32
         self.input_size = exp.input_size
@@ -32,6 +33,7 @@ class Trainer:
         self.file_name =exp.file_name
         self.save_path=exp.save_path
         self.txt_writer=exp.txt_writer
+        self.encoder = self.exp.encoder
         os.makedirs(self.file_name,exist_ok=True)
         setup_logger(self.file_name,distributed_rank=0,filename="train_log.txt",mode="a")
     def train(self):
@@ -58,7 +60,9 @@ class Trainer:
         inps,masks,use_augs,targets = self.prefetcher.next()
         inps = inps.to(self.data_type)
         targets = targets.to(self.data_type)
-        outputs = self.network(inputs=inps,targets=targets)
+        if self.encoder is not None:
+            targets = self.encoder(targets,args=self.args)
+        outputs = self.network.train(inputs=inps,targets=targets,iter=self.iter)
         self.meter.update(
             iter_time = 0,
             data_time = 0,
@@ -98,12 +102,6 @@ class Trainer:
     def after_train(self):
         logger.info("Training of experiment is done and the best AP is {:.2f}".format(self.best_ap * 100))
     def before_epoch(self):
-        '''是否最后停止数据增强开关
-        if self.epoch>=self.max_epoch - self.exp.no_aug_epochs:
-            self.train_loader.close_mosaic()
-            self.no_aug=True
-            logger.info('Stop Data Augment Now!!!!!!!!!!')
-        '''
         logger.info("---> start train epoch{}".format(self.epoch + 1))
         self.exp.reset_map()
         prob=1.- self.soft_finetune_beta*(self.epoch/self.max_epoch)**2
@@ -114,7 +112,7 @@ class Trainer:
     def after_epoch(self):
         self.save_ckpt(ckpt_name="latest")
         if (self.epoch + 1) % self.exp.eval_interval == 0:
-            all_reduce_norm(self.model)
+            all_reduce_norm(self.network.model)
             self.evaluate_and_save_model()
     def before_iter(self):
         t=time.time()
@@ -160,16 +158,7 @@ class Trainer:
 
 #/--------------------------------------------------test evaluator-------------------------------------------------------/#
     def evaluate_test_model(self):
-        if self.use_model_ema:
-            evalmodel = self.ema_model.ema
-        else:
-            evalmodel = self.model
-            if is_parallel(evalmodel):
-                evalmodel = evalmodel.module
-        with adjust_status(evalmodel, training=False):
-            self.test_evaluator.push_model(self.network.model)
-            self.test_evaluator.push_postprocess(self.network.postprocessors)
-            stats= self.test_evaluator.eval()
+        stats= self.test_evaluator.eval(self.network)
         return stats
     def save_test_model(self,update_best_ckpt,ap50_95):
         self.save_ckpt("last_epoch", update_best_ckpt, ap=ap50_95)
@@ -188,8 +177,7 @@ class Trainer:
         logger.info("Save weights to {}".format(self.file_name))
         ckpt_state = {
             "start_epoch": self.epoch + 1,
-            "model": save_model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
+            "model": self.network.model.state_dict(),
             "best_ap": self.best_ap,
             "curr_ap": ap,
         }
