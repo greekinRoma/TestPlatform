@@ -13,6 +13,7 @@ from utils import *
 import matplotlib.pyplot as plt
 from setting.read_setting import config as cfg
 from thop import profile
+from Models import Get_Network
 import time
 class TestExp():
     def __init__(self,
@@ -46,7 +47,7 @@ class TestExp():
         self.pic_type='.png'
         self.itr=0
         self.photo_dir=os.path.join(self.save_dir, "conf={},nms={}".format(self.test_conf,self.nmsthre))
-        self.coco=coco(save_dir=save_dir,image_set=mode,year='2007')
+        self.coco=coco(save_dir=save_dir,image_set=mode,year='2007',data_dir=data_dir)
         self.outcome_file=os.path.join(self.save_dir,"outcome.txt")
         self.names=[]
         self.values=[]
@@ -63,36 +64,19 @@ class TestExp():
         if not os.path.isdir(dir):
             os.mkdir(dir)
         return dir
-    def load_yolox(self,pth_path=None):
-        if self.use_cuda:
-            self.model = Network('yolox_s').cuda()
-            model = torch.load(pth_path, map_location=torch.device('cuda'))
-        else:
-            self.model=Network('yolox_s')
-            model = torch.load(pth_path, map_location=torch.device('cpu'))
-        torch.save(model,os.path.join(self.save_dir,'save_weight.pth'))
-        self.model.eval()
-        self.model.load_state_dict(model['model'], strict=False)
+    def load_network(self,pth_path=None):
+        self.model = Get_Network(cfg['model'],cfg,pth_path=pth_path)
+        torch.save(self.model,os.path.join(self.save_dir,'save_weight.pth'))
+        # self.model.eval()
     def model_predict(self, image):
         with torch.no_grad():
-            outputs = self.model.test(image)
-            outputs[..., 4] = outputs[..., 4].sigmoid()
-            outputs[..., 5] = outputs[..., 5].sigmoid()
-            outputs[..., 6] = outputs[..., 6].sigmoid()
-            outputs = postprocess(
-                outputs,
-                self.num_classes,
-                self.test_conf,
-                self.nmsthre,
-                class_agnostic=True)
-            bboxes = []
-            scores = []
-            for output in outputs:
-                if output is None:
-                    return np.array([]), np.array([])
-                bboxes.append(output[..., 0:4])
-                scores.append(output[..., 4] * output[..., 5] * output[..., 6])
-        return bboxes, scores
+            bboxes, scores = self.model(image)
+            o_bboxes = []
+            o_scores = []
+            for bbox,score in zip(bboxes,scores):
+                o_bboxes.append(bbox)
+                o_scores.append(score)
+        return o_bboxes, o_scores
     def show_prediction(self,imgs,outcomes,targets,scores):
         for img_g,outcome,target,score in zip(imgs,outcomes,targets,scores):
             img_g=img_g.permute(1,2,0).cpu().numpy().astype(np.uint8)
@@ -101,9 +85,9 @@ class TestExp():
             gt_boxes=target[:,1:]
             img=img_g[...,2:3]
             img=np.repeat(img,3,axis=2)
-            pos_mask=score>0.5
-            img=self.draw_box(img,pred_boxes[pos_mask],(255,0,0),scores=score[pos_mask])
-            img=self.draw_box(img,gt_boxes,(0,255,0))
+            pos_mask=score[...,0]>0.5
+            img=self.draw_box(img,pred_boxes[pos_mask],(255,0,0),'ship',scores=score[pos_mask])
+            img=self.draw_box(img,gt_boxes,(0,255,0),'ship')
             cv2.imwrite(os.path.join(self.photo_dir,"{}.png".format(self.itr)),img)
             self.itr=self.itr+1
     def save_pred(self):
@@ -119,14 +103,11 @@ class TestExp():
             self.show_prediction(imgs,outcomes,targets,scores)
             if len(scores)<=0:
                 all_boxes[0].append(np.array([[0,0,0,0,0]]))
+            outcomes = outcomes 
             for name,score,outcome in zip(names,scores,outcomes):
-                score=score.detach().cpu()
-                outcome=outcome.detach().cpu()
-                score=torch.reshape(score,[-1,1])
-                boxes=outcome
-                det=np.concatenate([score,boxes],-1)
+                det=np.concatenate([score,outcome* cfg.origin_size/cfg.input_size],-1)
                 all_boxes[0].append(det)
-                for s, o in zip(score, boxes):
+                for s, o in zip(score, outcome):
                     f.write("{} {} {} {} {} {}\n".format(name,float(s), o[0], o[1], o[2], o[3]))
         self.coco._write_coco_results_file(all_boxes=all_boxes,res_file=self.save_file)
         time_sum = 0
@@ -152,7 +133,7 @@ class TestExp():
         self.values.append(Total_params / 1e6)
     def get_gflops(self):
         inputs = torch.rand([1,3,640,640]).cuda()
-        flops, params = profile(self.model, inputs=(inputs,False,True))
+        flops, params = profile(self.model, inputs=(inputs))
         self.names.append("gflops")
         self.values.append(flops / 1e9 * 2)
     def tranform_int(self, boxes):
@@ -160,13 +141,13 @@ class TestExp():
         for box in boxes:
             box_list.append([int(box[0]), int(box[1]), int(box[2]), int(box[3])])
         return box_list
-    def draw_box(self,image,boxes_g,color=(0,255,0),class_name=None,scores=None):
+    def draw_box(self,image,boxes_g,color=(0,255,0),class_name='ship',scores=None):
         boxes = self.tranform_int(boxes_g).copy()
         for i,box in enumerate(boxes):
             cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), color)
             if scores is None:
                 continue
-            score=scores[i]
+            score=scores[i,0]
             text = '{}:{:.1f}%'.format(class_name, score * 100)
             font = cv2.FONT_HERSHEY_SIMPLEX
             txt_size = cv2.getTextSize(text, font, 0.4, 1)[0]
@@ -211,9 +192,9 @@ if __name__=="__main__":
     # print(os.listdir(r"../datasets/ISDD/VOC2007"))
     exp=TestExp(
         use_cuda=cfg.use_cuda,
-        data_dir=r'./datasets/SII',
+        data_dir=cfg.coco_data_dir,
         save_dir=r'./save_outcome',
         use_tide=True)
-    exp.load_yolox(r'/home/greek/files/test_platfrom_31/save_weight.pth')
+    exp.load_network(f'./Weights/{cfg.model}/{cfg.datasets}/best_ckpt.pth')
     exp.save_pred()
     exp.compute_ap()

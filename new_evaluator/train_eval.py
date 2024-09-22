@@ -4,7 +4,7 @@ from utils.boxes import postprocess
 from tqdm import tqdm
 from new_evaluator.coco import coco
 class Evaluator():
-    def __init__(self,dataloader,need_change):
+    def __init__(self,dataloader,need_change,data_dir):
         super(Evaluator, self).__init__()
         self.dataloader=dataloader
         self.net=None
@@ -12,7 +12,7 @@ class Evaluator():
         self.test_conf=0.001
         self.nmsthre=0.5
         self.need_change=need_change
-        self.coco = coco(save_dir='./', image_set='test', year='2007')
+        self.coco = coco(save_dir='./', image_set='test', year='2007',data_dir=data_dir)
         self.save_file='./content.json'
     def eval(self,network):
         assert network.model is not None,'you should push a model,and the model is None!'

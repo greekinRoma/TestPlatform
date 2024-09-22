@@ -4,6 +4,7 @@ from .YOLOF.playground.detection.coco.yolof.yolof_cspdarknet53_DC5_9x.config imp
 import torch
 from easydict import EasyDict as edict
 from ..utils import LRScheduler
+import os
 def box_cxcywh_to_xyxy(x):
     cx, cy, w, h = x.unbind(-1)
     b = [(cx - w / 2), (cy - h / 2),
@@ -44,11 +45,14 @@ def load_ckpt(model, ckpt):
     model.load_state_dict(load_dict, strict=False)
     return model
 class YOLOF(nn.Module):
-    def __init__(self, args) -> None:
+    def __init__(self, args,pth=None) -> None:
         super().__init__()
         self.model = build_model(config)
-        checkpoint = torch.load(r'/home/greek/files/test/Test_platfrom/Weights/YOLOF/YOLOF_CSP_D_53_DC5_9x.pth', map_location='cuda')
-        load_ckpt(self.model,checkpoint['model'])
+        self.pth = pth
+        self.args=args
+        if self.pth is None:
+            self.pth = os.path.join(args.main_dir,'Weights',args.model,'Weights','save.pth')
+        self.load()
         self.momentum = 0.9
         self.weight_decay = 5e-4
         self.basic_lr_per_img = 0.01 / 64.0
@@ -62,7 +66,7 @@ class YOLOF(nn.Module):
         self.lr_scheduler = self.get_lr_scheduler(self.basic_lr_per_img*self.batch_size,150)
         self.optimizer = self.get_optimizer(args['batch_size'])
         self.scaler = torch.cuda.amp.GradScaler(enabled=False)
-    def train(self,inputs,targets,iter):
+    def train_one_iter(self,inputs,targets,iter):
         dict_targets = []
         for target in targets:
             dict_target = torch_dict(target)
@@ -100,6 +104,9 @@ class YOLOF(nn.Module):
         )  # add pg1 with weight_decay
         optimizer.add_param_group({"params":pg2})
         return optimizer
+    def load(self):
+        checkpoint = torch.load(self.pth, map_location='cuda')
+        load_ckpt(self.model,checkpoint['model'])
     def get_lr_scheduler(self,lr,iters_per_epoch):
         scheduler = LRScheduler(
             self.scheduler,

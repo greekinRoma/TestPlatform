@@ -49,14 +49,15 @@ def generate_args(main_dir:str,set_dict:dict,is_read_excel:bool):
         assert len(set_dict)>0,'names and setting is empty!!!!please check the path of loc!!!'
     args=EasyDict()
     #----------------------------NetWork----------------------------#
+    args['main_dir'] = main_dir
     args['model'] = 'YOLOF'
+    args['datasets'] = 'EISDD'
     args['net_name'] = 'yolox_s'
     args['name']=0
     args["mode"]='ssd'
     args["assign_mode"]='simota'
     #----------------------------Data----------------------------#
     #dataloader
-    args['coco_data_dir'] =os.path.join(main_dir,r'datasets/SII')
     args['target_dir'] = os.path.join(main_dir,r'datasets')
     args['use_shuffle'] = True
     args['cache_type'] = "ram"
@@ -85,7 +86,11 @@ def generate_args(main_dir:str,set_dict:dict,is_read_excel:bool):
     args['image_ext'] = '.png'
     args['use_cuda'] =True
     args['max_epoch']=300
+    dict_trans = dict()
+    dict_trans['IRSDSS'] = 640
+    dict_trans['EISDD'] =500
     args['input_size']=640
+    args['origin_size']=dict_trans[args.datasets]
     args['strides']=[8]
     args['in_channels']=[256]
     args['fp16']=False
@@ -94,6 +99,7 @@ def generate_args(main_dir:str,set_dict:dict,is_read_excel:bool):
     for name,setting in set_dict.items():
         assert name in args.keys(),'{} can not be found! keys error! Please reset the excel!!!'.format(name)
         args[name]=setting[0]
+    args['coco_data_dir'] =os.path.join(main_dir,f'datasets/Datasets/{args.datasets}')
     return args
 try:
     main_dir=r'../'

@@ -20,7 +20,7 @@ from setting.read_setting import config as cfg
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 class coco(imdb):
-    def __init__(self, save_dir,image_set, year):
+    def __init__(self, save_dir,image_set, year,data_dir):
         imdb.__init__(self, 'coco_' + year + '_' + image_set)
         # COCO specific config options
         self.config = {'use_salt': True,
@@ -28,7 +28,7 @@ class coco(imdb):
         # name, paths
         self._year = year
         self._image_set = image_set
-        self._data_path = osp.join(cfg["coco_data_dir"], 'COCO')
+        self._data_path = osp.join(data_dir, 'COCO')
         # load COCO API, classes, class <-> id mappings
         self._COCO = COCO(self._get_ann_file())
         cats = self._COCO.loadCats(self._COCO.getCatIds())

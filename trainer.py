@@ -62,7 +62,7 @@ class Trainer:
         targets = targets.to(self.data_type)
         if self.encoder is not None:
             targets = self.encoder(targets,args=self.args)
-        outputs = self.network.train(inputs=inps,targets=targets,iter=self.iter)
+        outputs = self.network.train_one_iter(inputs=inps,targets=targets,iter=self.iter)
         self.meter.update(
             iter_time = 0,
             data_time = 0,

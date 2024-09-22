@@ -80,7 +80,7 @@ class MyExp(nn.Module):
         # if self.use_cuda:
         #     self.model=self.model.cuda()
         # --------------  evaluation --------------------- #
-        self.test_evaluator = Evaluator(self.test_loader,need_change=False)
+        self.test_evaluator = Evaluator(self.test_loader,need_change=False,data_dir=args.coco_data_dir)
         # --------------  training config --------------------- #
         self.warmup_epochs = 1
         self.max_epoch = args['max_epoch']
