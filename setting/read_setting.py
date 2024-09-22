@@ -51,7 +51,7 @@ def generate_args(main_dir:str,set_dict:dict,is_read_excel:bool):
     #----------------------------NetWork----------------------------#
     args['main_dir'] = main_dir
     args['model'] = 'YOLOF'
-    args['datasets'] = 'EISDD'
+    args['datasets'] = 'IRSDSS'
     args['net_name'] = 'yolox_s'
     args['name']=0
     args["mode"]='ssd'

@@ -1,9 +1,9 @@
 from torch import nn
-from .DeFCN.playground.detection.coco.DeFCN.test.net import buil
-from .DeFCN.playground.detection.coco.DeFCN.
+from .DeFCN.playground.detection.coco.DeFCN.test.net import build_model
+from .DeFCN.playground.detection.coco.DeFCN.test.config import config
 import torch
-from easydict import EasyDict as edict
 from ..utils import LRScheduler
+import os
 def box_cxcywh_to_xyxy(x):
     cx, cy, w, h = x.unbind(-1)
     b = [(cx - w / 2), (cy - h / 2),
@@ -43,12 +43,15 @@ def load_ckpt(model, ckpt):
 
     model.load_state_dict(load_dict, strict=False)
     return model
-class YOLOF(nn.Module):
-    def __init__(self, args) -> None:
+class DeFCN(nn.Module):
+    def __init__(self, args,pth=None) -> None:
         super().__init__()
         self.model = build_model(config)
-        checkpoint = torch.load(r'/home/greek/files/test/Test_platfrom/Weights/YOLOF/YOLOF_CSP_D_53_DC5_9x.pth', map_location='cuda')
-        load_ckpt(self.model,checkpoint['model'])
+        self.pth = pth
+        self.args=args
+        if self.pth is None:
+            self.pth = os.path.join(args.main_dir,'Weights',args.model,'Weights','save.pth')
+        self.load()
         self.momentum = 0.9
         self.weight_decay = 5e-4
         self.basic_lr_per_img = 0.01 / 64.0
@@ -79,6 +82,9 @@ class YOLOF(nn.Module):
         for k,param_group in enumerate(self.optimizer.param_groups):
             param_group["lr"] = lr
         return losses
+    def load(self):
+        checkpoint = torch.load(self.pth, map_location='cuda')
+        load_ckpt(self.model,checkpoint['model'])
     def get_optimizer(self, batch_size):
         if self.warmup_epochs > 0:
             lr = self.warmup_lr
