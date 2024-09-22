@@ -5,7 +5,6 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 from DataLoader.dataset.valtransform import ValTransform
-from DataLoader.dataset.sources.cocosource import COCOSource
 from DataLoader.dataset.testdataset import TestDataset
 from new_evaluator.coco import coco
 from utils import *
